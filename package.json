@@ -1,5 +1,5 @@
 {
-  "name": "videojs-fairplay",
+  "name": "videojs-fairplay-catenoid",
   "version": "0.2.0",
   "description": "Video.js tech for supporting Fairplay streaming.",
   "main": "src/videojs-fairplay",
@@ -35,7 +35,7 @@
     "load-grunt-tasks": "^3.5.0",
     "moment": "^2.14.1",
     "time-grunt": "^1.4.0",
-    "video.js": "^5.10.7",
+    "video.js": "^5.20.5",
     "webpack": "^1.13.1",
     "webpack-dev-server": "^1.14.1"
   }

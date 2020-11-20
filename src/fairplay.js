@@ -1,6 +1,6 @@
-import { stringToArray } from './util';
+import { arrayToString, stringToArray } from './util';
 
-export default function concatInitDataIdAndCertificate(initData, id, certificate) {
+export function concatInitDataIdAndCertificate(initData, id, certificate) {
   if (typeof id === 'string') {
     id = stringToArray(id);
   }
@@ -37,4 +37,9 @@ export default function concatInitDataIdAndCertificate(initData, id, certificate
   certificateArray.set(certificate);
 
   return new Uint8Array(buffer, 0, buffer.byteLength);
+}
+
+export function extractContentId(initData) {
+  const str = arrayToString(initData);
+  return str.substring(str.indexOf('skd://') + 6);
 }
