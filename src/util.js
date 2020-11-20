@@ -1,3 +1,12 @@
+export function stringToArray(string) {
+  const buffer = new ArrayBuffer(string.length*2); // 2 bytes for each char
+  const array = new Uint16Array(buffer);
+  for (let i = 0, strLen = string.length; i < strLen; i++) {
+    array[i] = string.charCodeAt(i);
+  }
+  return array;
+}
+
 export function arrayToString(array) {
   return String.fromCharCode.apply(null, new Uint16Array(array.buffer));
 }
@@ -48,27 +57,4 @@ export function base64EncodeUint8Array(input) {
   }
 
   return output;
-}
-
-export function getHostnameFromURI(uri) {
-  const link = document.createElement('a');
-
-  link.href = uri;
-
-  return link.hostname;
-}
-
-export function stringToArray(string) {
-  const length = string.length;
-
-  // 2 bytes for each char
-  const buffer = new ArrayBuffer(length * 2);
-
-  const array = new Uint16Array(buffer);
-
-  for (let i = 0; i < length; i++) {
-    array[i] = string.charCodeAt(i);
-  }
-
-  return array;
 }

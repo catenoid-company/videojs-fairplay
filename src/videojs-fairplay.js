@@ -1,7 +1,7 @@
 /* global videojs, WebKitMediaKeys */
 
-import { arrayToString, getHostnameFromURI } from './util';
-import concatInitDataIdAndCertificate from './fairplay';
+import { base64EncodeUint8Array, base64DecodeUint8Array } from './util';
+import { concatInitDataIdAndCertificate, extractContentId } from './fairplay';
 import ERROR_TYPE from './error-type';
 
 let certificate;
@@ -72,8 +72,8 @@ class Html5Fairplay {
 
     const request = new XMLHttpRequest();
 
-    request.responseType = 'arraybuffer';
-
+    // request.responseType = 'arraybuffer';
+    request.responseType = 'text';
     request.addEventListener('error', this.onCertificateError, false);
     request.addEventListener('load', (event) => {
       this.onCertificateLoad(event, {
@@ -82,25 +82,36 @@ class Html5Fairplay {
     }, false);
 
     request.open('GET', certificateUrl, true);
+    request.setRequestHeader('Pragma', 'Cache-Control: no-cache');
+    request.setRequestHeader("Cache-Control", "max-age=0");
     request.send();
   }
 
   fetchLicense({ target, message }) {
     this.log('fetchLicense()');
 
-    const { licenseUrl } = this.protection_;
+    const { licenseUrl, licenseRequestHeaders } = this.protection_;
+
+    const requestHeaderKey = Object.keys(licenseRequestHeaders)[0];
+    const requestHeaderValue = licenseRequestHeaders[requestHeaderKey];
 
     const request = new XMLHttpRequest();
 
-    request.responseType = 'arraybuffer';
+    // request.responseType = 'arraybuffer';
+    request.responseType = 'text';
     request.session = target;
 
     request.addEventListener('error', this.onLicenseError, false);
     request.addEventListener('load', this.onLicenseLoad, false);
-
+    this.log("spc=" + base64EncodeUint8Array(message));
+    const params = 'spc=' + base64EncodeUint8Array(message) + '&assetId=' + encodeURIComponent(request.session.contentId);
     request.open('POST', licenseUrl, true);
-    request.setRequestHeader('Content-type', 'application/octet-stream');
-    request.send(message);
+    // request.setRequestHeader('Content-type', 'application/octet-stream');
+    request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    // pallycon add
+    request.setRequestHeader(requestHeaderKey, requestHeaderValue);
+    // request.send(message);
+    request.send(params);
   }
 
   getErrorResponse(response) {
@@ -148,17 +159,26 @@ class Html5Fairplay {
       return;
     }
 
-    certificate = new Uint8Array(response);
-
+    // certificate = new Uint8Array(response);
+    certificate = base64DecodeUint8Array(response);
+    this.log(response);
     callback();
+
+    // NOTE: videojs should handle video errors already
+    // this.el_.addEventListener('error', this.onVideoError, false);
+
+    // NOTE: videojs must be reset every time a source is changed (to remove existing media keys).
+    // WIP: this means that `webkitneedkey` must also be reattached for the license to trigger?
+    this.el_.addEventListener('webkitneedkey', this.onVideoWebkitNeedKey, false);
+    this.el_.addEventListener('error', this.onVideoError, false);
   }
 
   onRequestError(request, errorType = ERROR_TYPE.UNKNOWN) {
     this.log('onRequestError()');
 
-    const errorMessage = `${errorType} - DRM: com.apple.fps.1_0 update, 
-      XHR status is '${request.statusText}(${request.status})', expected to be 200. 
-      readyState is '${request.readyState}'. 
+    const errorMessage = `${errorType} - DRM: com.apple.fps.1_0 update,
+      XHR status is '${request.statusText}(${request.status})', expected to be 200.
+      readyState is '${request.readyState}'.
       Response is ${this.getErrorResponse(request.response)}`;
 
     this.player_.error({
@@ -205,7 +225,7 @@ class Html5Fairplay {
 
   onLicenseLoad(event) {
     this.log('onLicenseLoad()');
-
+    this.log(event.target);
     const {
       response,
       session,
@@ -218,7 +238,8 @@ class Html5Fairplay {
       return;
     }
 
-    session.update(new Uint8Array(response));
+    // session.update(new Uint8Array(response));
+    session.update(base64DecodeUint8Array(response.trim()));
   }
 
   onVideoError() {
@@ -235,7 +256,8 @@ class Html5Fairplay {
 
     const { keySystem } = this.protection_;
 
-    const contentId = getHostnameFromURI(arrayToString(event.initData));
+    // const contentId = getHostnameFromURI(arrayToString(event.initData));
+    const contentId = extractContentId(event.initData);
 
     const initData = concatInitDataIdAndCertificate(event.initData, contentId, certificate);
 
@@ -249,9 +271,10 @@ class Html5Fairplay {
   }
 
   src({ src }) {
+    this.log('src: ', src);
+
     if (!this.hasProtection(this.protection_)) {
       this.tech_.src(src);
-
       return;
     }
 
@@ -315,7 +338,7 @@ videojs.fairplaySourceHandler.canPlayType = function canPlayType(type) {
 };
 
 if (window.MediaSource) {
-  videojs.getComponent('Html5').registerSourceHandler(videojs.fairplaySourceHandler(), 0);
+  videojs.getComponent('Html5').registerSourceHandler(videojs.fairplaySourceHandler(), -1);
 }
 
 videojs.Html5Fairplay = Html5Fairplay;
